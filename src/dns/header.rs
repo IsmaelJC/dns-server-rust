@@ -1,24 +1,15 @@
 /// Query/Response indicator for DNS packets
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QRIndicator {
-    Question,
-    Reply,
+    Question = 0,
+    Reply = 1,
 }
 
-impl From<bool> for QRIndicator {
-    fn from(flag: bool) -> Self {
-        match flag {
-            false => QRIndicator::Question,
-            true => QRIndicator::Reply,
-        }
-    }
-}
-
-impl From<&QRIndicator> for bool {
-    fn from(indicator: &QRIndicator) -> Self {
-        match indicator {
-            QRIndicator::Question => false,
-            QRIndicator::Reply => true,
+impl From<u8> for QRIndicator {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0 => QRIndicator::Question,
+            _ => QRIndicator::Reply,
         }
     }
 }
@@ -51,7 +42,7 @@ impl DnsHeader {
     /// - Byte 1: QR(1) | Opcode(4) | AA(1) | TC(1) | RD(1)
     /// - Byte 2: RA(1) | Z(3) | RCODE(4)
     pub fn get_flags_bytes(&self) -> [u8; 2] {
-        let flags_first_byte = ((bool::from(&self.query_response_indicator) as u8) << 7)
+        let flags_first_byte = ((self.query_response_indicator as u8) << 7)
             | (self.operation_code << 3)
             | ((self.authoritative_answer as u8) << 2)
             | ((self.truncation as u8) << 1)
@@ -68,7 +59,7 @@ impl From<&[u8; 12]> for DnsHeader {
     fn from(buf: &[u8; 12]) -> Self {
         Self {
             packet_identifier: u16::from_be_bytes([buf[0], buf[1]]),
-            query_response_indicator: ((buf[2] & 0b10000000) != 0).into(),
+            query_response_indicator: QRIndicator::from(buf[2] & 0b10000000),
             operation_code: (buf[2] & 0b01111000) >> 3,
             authoritative_answer: (buf[2] & 0b00000100) != 0,
             truncation: (buf[2] & 0b00000010) != 0,
@@ -124,10 +115,8 @@ mod tests {
 
     #[test]
     fn test_qr_indicator_conversion() {
-        assert_eq!(QRIndicator::from(false), QRIndicator::Question);
-        assert_eq!(QRIndicator::from(true), QRIndicator::Reply);
-        assert_eq!(bool::from(&QRIndicator::Question), false);
-        assert_eq!(bool::from(&QRIndicator::Reply), true);
+        assert_eq!(QRIndicator::from(0b00000000), QRIndicator::Question);
+        assert_eq!(QRIndicator::from(0b10000000), QRIndicator::Reply);
     }
 
     #[test]
