@@ -1,6 +1,23 @@
 #[allow(unused_imports)]
 use std::net::UdpSocket;
 
+#[derive(Debug)]
+struct DnsHeader {
+    packet_identifier: u16,
+    query_response_indicator: bool,
+    operation_code: u8,
+    authoritative_answer: bool,
+    truncation: bool,
+    recursion_desired: bool,
+    recursion_available: bool,
+    reserved: u8,
+    response_code: u8,
+    question_count: u16,
+    answer_record_count: u16,
+    authority_record_count: u16,
+    additional_record_count: u16,
+}
+
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
