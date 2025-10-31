@@ -2,9 +2,24 @@
 use std::net::UdpSocket;
 
 #[derive(Debug)]
+enum QRIndicator {
+    Question,
+    Reply,
+}
+
+impl From<bool> for QRIndicator {
+    fn from(flag: bool) -> Self {
+        match flag {
+            false => QRIndicator::Question,
+            true => QRIndicator::Reply,
+        }
+    }
+}
+
+#[derive(Debug)]
 struct DnsHeader {
     packet_identifier: u16,
-    query_response_indicator: bool,
+    query_response_indicator: QRIndicator,
     operation_code: u8,
     authoritative_answer: bool,
     truncation: bool,
@@ -22,7 +37,7 @@ impl From<&[u8; 12]> for DnsHeader {
     fn from(buf: &[u8; 12]) -> Self {
         Self {
             packet_identifier: u16::from_be_bytes([buf[0], buf[1]]),
-            query_response_indicator: (buf[2] & 0b10000000) != 0,
+            query_response_indicator: ((buf[2] & 0b10000000) != 0).into(),
             operation_code: (buf[2] & 0b01111000) >> 3,
             authoritative_answer: (buf[2] & 0b00000100) != 0,
             truncation: (buf[2] & 0b00000010) != 0,
