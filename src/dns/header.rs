@@ -79,6 +79,13 @@ impl DnsHeader {
 
         [flags_first_byte, flags_second_byte]
     }
+
+    /// Serializes the DNS header into a 12-byte array as specified in RFC 1035.
+    ///
+    /// Returns an array containing the binary representation of the DNS header.
+    pub fn to_bytes(&self) -> [u8; 12] {
+        self.into()
+    }
 }
 
 /// Deserialize a DNS header from a 12-byte array
@@ -177,7 +184,7 @@ mod tests {
             additional_record_count: 0,
         };
 
-        let bytes: [u8; 12] = (&original).into();
+        let bytes: [u8; 12] = (&original).to_bytes();
         let deserialized = DnsHeader::from(&bytes);
 
         assert_eq!(original, deserialized);
