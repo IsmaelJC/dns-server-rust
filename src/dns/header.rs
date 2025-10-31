@@ -14,6 +14,32 @@ impl From<u8> for QRIndicator {
     }
 }
 
+/// DNS response codes as defined in RFC 1035 section 4.1.1
+///
+/// These codes indicate the outcome of a DNS query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResponseCode {
+    NoError = 0,
+    FormatError = 1,
+    ServerFailure = 2,
+    NameError = 3,
+    NotImplemented = 4,
+    Refused = 5,
+}
+
+impl From<u8> for ResponseCode {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0 => ResponseCode::NoError,
+            2 => ResponseCode::ServerFailure,
+            3 => ResponseCode::NameError,
+            4 => ResponseCode::NotImplemented,
+            5 => ResponseCode::Refused,
+            _ => ResponseCode::FormatError,
+        }
+    }
+}
+
 /// DNS packet header structure
 ///
 /// Represents the fixed 12-byte header that appears at the start of every DNS message.
