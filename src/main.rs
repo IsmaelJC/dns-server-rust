@@ -102,6 +102,12 @@ impl From<&DnsHeader> for [u8; 12] {
     }
 }
 
+impl From<DnsHeader> for [u8; 12] {
+    fn from(header: DnsHeader) -> Self {
+        <[u8; 12]>::from(&header)
+    }
+}
+
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -109,27 +115,33 @@ fn main() {
     let udp_socket = UdpSocket::bind("127.0.0.1:2053").expect("Failed to bind to address");
     let mut buf = [0; 512];
 
-    // let header = DnsHeader {
-    //     packet_identifier: 1234,
-    //     query_response_indicator: true,
-    //     operation_code: 0,
-    //     authoritative_answer: false,
-    //     truncation: false,
-    //     recursion_desired: false,
-    //     recursion_available: false,
-    //     reserved: 0,
-    //     response_code: 0,
-    //     question_count: 0,
-    //     answer_record_count: 0,
-    //     authority_record_count: 0,
-    //     additional_record_count: 0,
-    // };
+    let response_header: [u8; 12] = DnsHeader {
+        packet_identifier: 1234,
+        query_response_indicator: QRIndicator::Reply,
+        operation_code: 0,
+        authoritative_answer: false,
+        truncation: false,
+        recursion_desired: false,
+        recursion_available: false,
+        reserved: 0,
+        response_code: 0,
+        question_count: 0,
+        answer_record_count: 0,
+        authority_record_count: 0,
+        additional_record_count: 0,
+    }
+    .into();
 
     loop {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 println!("Received {} bytes from {}", size, source);
-                let response = [];
+                let mut response = [0; 512];
+
+                let destination_slice = &mut response[..12];
+
+                destination_slice.copy_from_slice(&response_header);
+
                 udp_socket
                     .send_to(&response, source)
                     .expect("Failed to send response");
