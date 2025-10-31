@@ -4,4 +4,4 @@
 pub mod header;
 
 // Re-export commonly used types for convenience
-pub use header::{DnsHeader, QRIndicator};
+pub use header::{DnsHeader, QRIndicator, ResponseCode};

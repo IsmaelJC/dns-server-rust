@@ -54,7 +54,7 @@ pub struct DnsHeader {
     pub recursion_desired: bool,
     pub recursion_available: bool,
     pub reserved: u8,
-    pub response_code: u8,
+    pub response_code: ResponseCode,
     pub question_count: u16,
     pub answer_record_count: u16,
     pub authority_record_count: u16,
@@ -73,8 +73,9 @@ impl DnsHeader {
             | ((self.authoritative_answer as u8) << 2)
             | ((self.truncation as u8) << 1)
             | (self.recursion_desired as u8);
-        let flags_second_byte =
-            ((self.recursion_available as u8) << 7) | (self.reserved << 4) | self.response_code;
+        let flags_second_byte = ((self.recursion_available as u8) << 7)
+            | (self.reserved << 4)
+            | (self.response_code as u8);
 
         [flags_first_byte, flags_second_byte]
     }
@@ -92,7 +93,7 @@ impl From<&[u8; 12]> for DnsHeader {
             recursion_desired: (buf[2] & 0b00000001) != 0,
             recursion_available: (buf[3] & 0b10000000) != 0,
             reserved: (buf[3] & 0b01110000) >> 4,
-            response_code: buf[3] & 0b00001111,
+            response_code: ResponseCode::from(buf[3] & 0b00001111),
             question_count: u16::from_be_bytes([buf[4], buf[5]]),
             answer_record_count: u16::from_be_bytes([buf[6], buf[7]]),
             authority_record_count: u16::from_be_bytes([buf[8], buf[9]]),
@@ -146,6 +147,19 @@ mod tests {
     }
 
     #[test]
+    fn test_response_code_conversion() {
+        assert_eq!(ResponseCode::from(0b0000), ResponseCode::NoError);
+        assert_eq!(ResponseCode::from(0b0001), ResponseCode::FormatError);
+        assert_eq!(ResponseCode::from(0b0010), ResponseCode::ServerFailure);
+        assert_eq!(ResponseCode::from(0b0011), ResponseCode::NameError);
+        assert_eq!(ResponseCode::from(0b0100), ResponseCode::NotImplemented);
+        assert_eq!(ResponseCode::from(0b0101), ResponseCode::Refused);
+
+        // Test case for when pattern is greater than 5
+        assert_eq!(ResponseCode::from(0b1000), ResponseCode::FormatError);
+    }
+
+    #[test]
     fn test_header_serialization_roundtrip() {
         let original = DnsHeader {
             packet_identifier: 1234,
@@ -156,7 +170,7 @@ mod tests {
             recursion_desired: true,
             recursion_available: false,
             reserved: 0,
-            response_code: 0,
+            response_code: ResponseCode::NoError,
             question_count: 1,
             answer_record_count: 0,
             authority_record_count: 0,

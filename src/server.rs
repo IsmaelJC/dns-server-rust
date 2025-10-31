@@ -1,6 +1,6 @@
 use std::net::UdpSocket;
 
-use crate::dns::{DnsHeader, QRIndicator};
+use crate::dns::{DnsHeader, QRIndicator, ResponseCode};
 
 /// Starts and runs the DNS server
 ///
@@ -22,7 +22,7 @@ pub fn run() -> std::io::Result<()> {
         recursion_desired: false,
         recursion_available: false,
         reserved: 0,
-        response_code: 0,
+        response_code: ResponseCode::NoError,
         question_count: 0,
         answer_record_count: 0,
         authority_record_count: 0,
