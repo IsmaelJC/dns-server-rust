@@ -13,7 +13,7 @@ pub fn run() -> std::io::Result<()> {
     let mut buf = [0; 512];
 
     // Prepare a default response header
-    let response_header: [u8; 12] = DnsHeader {
+    let response_header = DnsHeader {
         packet_identifier: 1234,
         query_response_indicator: QRIndicator::Reply,
         operation_code: 0,
@@ -28,7 +28,7 @@ pub fn run() -> std::io::Result<()> {
         authority_record_count: 0,
         additional_record_count: 0,
     }
-    .into();
+    .to_bytes();
 
     loop {
         match udp_socket.recv_from(&mut buf) {
