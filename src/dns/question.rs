@@ -74,6 +74,17 @@ impl TryFrom<u16> for Class {
     }
 }
 
+/// Represents a single DNS question section entry.
+///
+/// A DNS question specifies the query information in a DNS packet, including the domain name to look up,
+/// the type of record being requested (such as A, NS, MX, etc.), and the class of the query (typically Internet).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DnsQuestion {
+    pub domain_name: Vec<String>,
+    pub record_type: RecordType,
+    pub class: Class,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
