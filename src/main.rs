@@ -16,6 +16,15 @@ impl From<bool> for QRIndicator {
     }
 }
 
+impl From<&QRIndicator> for bool {
+    fn from(indicator: &QRIndicator) -> Self {
+        match indicator {
+            QRIndicator::Question => false,
+            QRIndicator::Reply => true,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct DnsHeader {
     packet_identifier: u16,
@@ -31,6 +40,20 @@ struct DnsHeader {
     answer_record_count: u16,
     authority_record_count: u16,
     additional_record_count: u16,
+}
+
+impl DnsHeader {
+    pub fn get_flags_bytes(&self) -> [u8; 2] {
+        let flags_first_byte = ((bool::from(&self.query_response_indicator) as u8) << 7)
+            | (self.operation_code << 3)
+            | ((self.authoritative_answer as u8) << 2)
+            | ((self.truncation as u8) << 1)
+            | (self.recursion_desired as u8);
+        let flags_second_byte =
+            ((self.recursion_available as u8) << 7) | (self.reserved << 4) | self.response_code;
+
+        [flags_first_byte, flags_second_byte]
+    }
 }
 
 impl From<&[u8; 12]> for DnsHeader {
@@ -50,6 +73,32 @@ impl From<&[u8; 12]> for DnsHeader {
             authority_record_count: u16::from_be_bytes([buf[8], buf[9]]),
             additional_record_count: u16::from_be_bytes([buf[10], buf[11]]),
         }
+    }
+}
+
+impl From<&DnsHeader> for [u8; 12] {
+    fn from(header: &DnsHeader) -> Self {
+        let packet_identifier_bytes = header.packet_identifier.to_be_bytes();
+        let flags_bytes = header.get_flags_bytes();
+        let question_count_bytes = header.question_count.to_be_bytes();
+        let answer_record_bytes = header.answer_record_count.to_be_bytes();
+        let authority_record_count = header.authority_record_count.to_be_bytes();
+        let additional_record_count = header.additional_record_count.to_be_bytes();
+
+        [
+            packet_identifier_bytes[0],
+            packet_identifier_bytes[1],
+            flags_bytes[0],
+            flags_bytes[1],
+            question_count_bytes[0],
+            question_count_bytes[1],
+            answer_record_bytes[0],
+            answer_record_bytes[1],
+            authority_record_count[0],
+            authority_record_count[1],
+            additional_record_count[0],
+            additional_record_count[1],
+        ]
     }
 }
 
