@@ -289,12 +289,20 @@ mod tests {
                 .map(|domain_name| { domain_name.label_segments.join(".") }),
             Ok(String::from("google.com"))
         );
+        assert_eq!(
+            DomainName::new(google_dot_com).map(|domain_name| { domain_name.wire_format }),
+            Ok(google_dot_com.to_vec())
+        );
 
         // If we add additional bytes after terminating null byte, the result should remain the same
         assert_eq!(
             DomainName::new(&[google_dot_com, &[0x06, 0x67, 0x6f]].concat())
                 .map(|domain_name| { domain_name.label_segments.join(".") }),
             Ok(String::from("google.com"))
+        );
+        assert_eq!(
+            DomainName::new(google_dot_com).map(|domain_name| { domain_name.wire_format }),
+            Ok(google_dot_com.to_vec())
         );
     }
 
