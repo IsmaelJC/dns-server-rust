@@ -122,10 +122,10 @@ impl DomainName {
         let mut current_label = String::new();
 
         for byte in packet.iter() {
+            wire_format.push(*byte);
+
             match current_label_length {
                 None => {
-                    wire_format.push(*byte);
-
                     if *byte == 0 {
                         break;
                     }
@@ -295,6 +295,41 @@ mod tests {
             DomainName::new(&[google_dot_com, &[0x06, 0x67, 0x6f]].concat())
                 .map(|domain_name| { domain_name.label_segments.join(".") }),
             Ok(String::from("google.com"))
+        );
+    }
+
+    #[test]
+    fn test_dns_question_new() {
+        // TODO: Add test cases for errors
+
+        let packet = &[
+            // Start of some fake domain name (not relevant for this test)
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType (e.g. 0x00, 0x01 for A)
+            0x00, 0x01, // Class (e.g. 0x00, 0x01 for IN)
+        ];
+
+        assert_eq!(
+            DnsQuestion::new(packet),
+            Ok(DnsQuestion {
+                domain_name: DomainName {
+                    wire_format: [
+                        0x03, 0x77, 0x77, 0x77, 0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03,
+                        0x63, 0x6f, 0x6d, 0x00,
+                    ]
+                    .to_vec(),
+                    label_segments: Vec::from([
+                        String::from("www"),
+                        String::from("google"),
+                        String::from("com")
+                    ])
+                },
+                record_type: RecordType::A,
+                class: Class::IN
+            })
         );
     }
 }
