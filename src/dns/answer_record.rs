@@ -52,6 +52,44 @@ pub struct DnsAnswerRecord {
     pub r_data: RData,
 }
 
+impl DnsAnswerRecord {
+    fn get_ttl_from_packet(packet_slice: &[u8], domain_name_len: usize) -> Result<u32, ()> {
+        let ttl_start_index = domain_name_len + 4;
+        let ttl_end_index = ttl_start_index + 4;
+        match packet_slice.get(ttl_start_index..ttl_end_index) {
+            None => Err(()),
+            Some(bytes) => Ok(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])),
+        }
+    }
+
+    fn get_r_data_from_packet(packet_slice: &[u8], domain_name_len: usize) -> Result<RData, ()> {
+        let r_data_start_index = domain_name_len + 8;
+        match packet_slice.get(r_data_start_index..) {
+            None => Err(()),
+            Some(bytes) => RData::new(bytes),
+        }
+    }
+
+    pub fn new(packet_slice: &[u8]) -> Result<Self, ()> {
+        let domain_name = DomainName::new(packet_slice)?;
+        let domain_name_len = domain_name.wire_format.len();
+        let record_type = RecordType::new(packet_slice, domain_name_len)?;
+        let class = Class::new(packet_slice, domain_name_len)?;
+        let time_to_live = Self::get_ttl_from_packet(packet_slice, domain_name_len)?;
+        let r_data = Self::get_r_data_from_packet(packet_slice, domain_name_len)?;
+        let r_data_length = r_data.0.len();
+
+        Ok(DnsAnswerRecord {
+            domain_name,
+            record_type,
+            class,
+            time_to_live,
+            r_data_length,
+            r_data,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,5 +108,83 @@ mod tests {
             RData::new(&[0x00, 0x04, 0x08, 0x08, 0x08, 0x08]),
             Ok(RData([0x08, 0x08, 0x08, 0x08].to_vec()))
         );
+    }
+
+    #[test]
+    fn test_dns_answer_record_new() {
+        // Helper to create a full valid answer packet:
+        // [domain name][record type][class][ttl][rdata len][rdata]
+        // Example domain name: \x03www\x06google\x03com\x00
+        let domain_bytes = [
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+        ];
+        let record_type_bytes = [0x00, 0x01]; // A
+        let class_bytes = [0x00, 0x01]; // IN
+        let ttl_bytes = [0x00, 0x00, 0x00, 0x2a]; // TTL = 42
+        let rdata_bytes = [0x00, 0x04, 192, 168, 1, 1]; // RData length = 4, IPv4 192.168.1.1
+
+        let full_packet: Vec<u8> = domain_bytes
+            .iter()
+            .chain(record_type_bytes.iter())
+            .chain(class_bytes.iter())
+            .chain(ttl_bytes.iter())
+            .chain(rdata_bytes.iter())
+            .cloned()
+            .collect();
+
+        let ans = DnsAnswerRecord::new(&full_packet);
+        assert_eq!(
+            ans,
+            Ok(DnsAnswerRecord {
+                domain_name: DomainName {
+                    wire_format: domain_bytes.to_vec(),
+                    label_segments: vec!["www".into(), "google".into(), "com".into(),]
+                },
+                record_type: RecordType::A,
+                class: Class::IN,
+                time_to_live: 42,
+                r_data_length: 4,
+                r_data: RData(vec![192, 168, 1, 1])
+            })
+        );
+
+        // Error: bad domain name (wrong wire format)
+        let mut bad_packet = full_packet.clone();
+        bad_packet[0] = 0xFF; // Not a valid label length (would cause DomainName::new to error)
+        assert_eq!(DnsAnswerRecord::new(&bad_packet), Err(()));
+
+        // Error: not enough bytes for record type
+        let too_short = domain_bytes.to_vec();
+        assert_eq!(DnsAnswerRecord::new(&too_short), Err(()));
+
+        // Error: bad record type
+        let mut bad_type = full_packet.clone();
+        let dom_len = domain_bytes.len();
+        bad_type[dom_len] = 0xFF; // Not defined in RecordType
+        bad_type[dom_len + 1] = 0xFF;
+        assert_eq!(DnsAnswerRecord::new(&bad_type), Err(()));
+
+        // Error: bad class
+        let mut bad_class = full_packet.clone();
+        let class_offset = domain_bytes.len() + 2;
+        bad_class[class_offset] = 0xFF;
+        bad_class[class_offset + 1] = 0xFF; // Not defined
+        assert_eq!(DnsAnswerRecord::new(&bad_class), Err(()));
+
+        // Error: not enough bytes for TTL
+        let mut bad_ttl = full_packet.clone();
+        bad_ttl.truncate(domain_bytes.len() + 2 + 2 + 2); // Cut into middle of TTL
+        assert_eq!(DnsAnswerRecord::new(&bad_ttl), Err(()));
+
+        // Error: not enough bytes for RDATA
+        let mut bad_rdata = full_packet.clone();
+        let rdata_start = domain_bytes.len() + 2 + 2 + 4; // after header, before rdata
+
+        // cut just after rdata len marker (so only rdata_length bytes, missing actual address)
+        bad_rdata.truncate(rdata_start + 2 + 1); // less than rdata_length
+        assert_eq!(DnsAnswerRecord::new(&bad_rdata), Err(()));
     }
 }
