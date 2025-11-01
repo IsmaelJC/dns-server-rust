@@ -23,7 +23,7 @@ pub enum RecordType {
 }
 
 impl RecordType {
-    fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
+    pub fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
         match (packet.get(domain_name_len), packet.get(domain_name_len + 1)) {
             (Some(first_byte), Some(second_byte)) => {
                 RecordType::try_from(u16::from_be_bytes([*first_byte, *second_byte]))
@@ -72,7 +72,7 @@ pub enum Class {
 }
 
 impl Class {
-    fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
+    pub fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
         match (
             packet.get(domain_name_len + 2),
             packet.get(domain_name_len + 3),
@@ -110,7 +110,7 @@ pub struct DomainName {
 }
 
 impl DomainName {
-    fn new(packet: &[u8]) -> Result<Self, ()> {
+    pub fn new(packet: &[u8]) -> Result<Self, ()> {
         if packet.is_empty() {
             return Err(());
         }
@@ -166,7 +166,7 @@ pub struct DnsQuestion {
 }
 
 impl DnsQuestion {
-    fn new(packet: &[u8]) -> Result<Self, ()> {
+    pub fn new(packet: &[u8]) -> Result<Self, ()> {
         DomainName::new(packet).and_then(|domain_name| {
             let domain_name_len = domain_name.wire_format.len();
             match (
@@ -183,7 +183,7 @@ impl DnsQuestion {
         })
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let domain_name_bytes = self.domain_name.wire_format.clone();
         let record_type_bytes = (self.record_type as u16).to_be_bytes().to_vec();
         let class_bytes = (self.class as u16).to_be_bytes().to_vec();
