@@ -5,7 +5,7 @@ use crate::dns::{Class, DomainName, RecordType};
 /// This struct encapsulates the binary wire-format of the data portion of a DNS answer,
 /// which varies depending on the record type (e.g., IPv4 address for an A record, domain name for CNAME, etc.).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RData(Vec<u8>);
+pub struct RData(pub Vec<u8>);
 
 impl RData {
     pub fn new(packet_slice: &[u8]) -> Result<Self, ()> {
