@@ -22,6 +22,17 @@ pub enum RecordType {
     TXT = 16,
 }
 
+impl RecordType {
+    fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
+        match (packet.get(domain_name_len), packet.get(domain_name_len + 1)) {
+            (Some(first_byte), Some(second_byte)) => {
+                RecordType::try_from(u16::from_be_bytes([*first_byte, *second_byte]))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
 impl TryFrom<u16> for RecordType {
     type Error = ();
 
@@ -60,6 +71,20 @@ pub enum Class {
     HS = 4,
 }
 
+impl Class {
+    fn new(packet: &[u8], domain_name_len: usize) -> Result<Self, ()> {
+        match (
+            packet.get(domain_name_len + 2),
+            packet.get(domain_name_len + 3),
+        ) {
+            (Some(first_byte), Some(second_byte)) => {
+                Class::try_from(u16::from_be_bytes([*first_byte, *second_byte]))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
 impl TryFrom<u16> for Class {
     type Error = ();
 
@@ -85,8 +110,8 @@ pub struct DomainName {
 }
 
 impl DomainName {
-    fn new(domain_name_buf: &[u8]) -> Result<Self, ()> {
-        if domain_name_buf.is_empty() {
+    fn new(packet: &[u8]) -> Result<Self, ()> {
+        if packet.is_empty() {
             return Err(());
         }
 
@@ -96,7 +121,7 @@ impl DomainName {
         let mut current_label_length: Option<usize> = None;
         let mut current_label = String::new();
 
-        for byte in domain_name_buf.iter() {
+        for byte in packet.iter() {
             match current_label_length {
                 None => {
                     wire_format.push(*byte);
@@ -138,6 +163,25 @@ pub struct DnsQuestion {
     pub domain_name: DomainName,
     pub record_type: RecordType,
     pub class: Class,
+}
+
+impl DnsQuestion {
+    fn new(packet: &[u8]) -> Result<Self, ()> {
+        DomainName::new(packet).and_then(|domain_name| {
+            let domain_name_len = domain_name.wire_format.len();
+            match (
+                RecordType::new(packet, domain_name_len),
+                Class::new(packet, domain_name_len),
+            ) {
+                (Ok(record_type), Ok(class)) => Ok(DnsQuestion {
+                    domain_name,
+                    record_type,
+                    class,
+                }),
+                _ => Err(()),
+            }
+        })
+    }
 }
 
 #[cfg(test)]
