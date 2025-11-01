@@ -88,6 +88,25 @@ impl DnsAnswerRecord {
             r_data,
         })
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let domain_name_bytes = self.domain_name.wire_format.clone();
+        let record_type_bytes = (self.record_type as u16).to_be_bytes().to_vec();
+        let class_bytes = (self.class as u16).to_be_bytes().to_vec();
+        let time_to_live_bytes = self.time_to_live.to_be_bytes().to_vec();
+        let r_data_length_bytes = (self.r_data_length as u16).to_be_bytes().to_vec();
+        let r_data_bytes = self.r_data.0.clone();
+
+        [
+            domain_name_bytes,
+            record_type_bytes,
+            class_bytes,
+            time_to_live_bytes,
+            r_data_length_bytes,
+            r_data_bytes,
+        ]
+        .concat()
+    }
 }
 
 #[cfg(test)]
@@ -186,5 +205,33 @@ mod tests {
         // cut just after rdata len marker (so only rdata_length bytes, missing actual address)
         bad_rdata.truncate(rdata_start + 2 + 1); // less than rdata_length
         assert_eq!(DnsAnswerRecord::new(&bad_rdata), Err(()));
+    }
+
+    #[test]
+    fn test_dns_answer_record_to_bytes() {
+        let domain_bytes = [
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+        ];
+        let record_type_bytes = [0x00, 0x01]; // A
+        let class_bytes = [0x00, 0x01]; // IN
+        let ttl_bytes = [0x00, 0x00, 0x00, 0x2a]; // TTL = 42
+        let rdata_bytes = [0x00, 0x04, 192, 168, 1, 1]; // RData length = 4, IPv4 192.168.1.1
+
+        let full_packet: Vec<u8> = domain_bytes
+            .iter()
+            .chain(record_type_bytes.iter())
+            .chain(class_bytes.iter())
+            .chain(ttl_bytes.iter())
+            .chain(rdata_bytes.iter())
+            .cloned()
+            .collect();
+
+        assert_eq!(
+            DnsAnswerRecord::new(&full_packet).map(|answer| { answer.to_bytes() }),
+            Ok(full_packet)
+        );
     }
 }
