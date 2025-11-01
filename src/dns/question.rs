@@ -74,13 +74,23 @@ impl TryFrom<u16> for Class {
     }
 }
 
+/// Represents a DNS domain name in both wire (binary) format and string (dot-separated label) format.
+///
+/// The `wire_format` field holds the domain as it appears in a DNS packet, using length-prefixed labels.
+/// The `string_format` field is a vector of label segments as strings, such as `["www", "example", "com"]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DomainName {
+    pub wire_format: Vec<u8>,
+    pub string_format: Vec<String>,
+}
+
 /// Represents a single DNS question section entry.
 ///
 /// A DNS question specifies the query information in a DNS packet, including the domain name to look up,
 /// the type of record being requested (such as A, NS, MX, etc.), and the class of the query (typically Internet).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DnsQuestion {
-    pub domain_name: Vec<String>,
+    pub domain_name: DomainName,
     pub record_type: RecordType,
     pub class: Class,
 }
