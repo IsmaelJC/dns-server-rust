@@ -182,6 +182,14 @@ impl DnsQuestion {
             }
         })
     }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let domain_name_bytes = self.domain_name.wire_format.clone();
+        let record_type_bytes = (self.record_type as u16).to_be_bytes().to_vec();
+        let class_bytes = (self.class as u16).to_be_bytes().to_vec();
+
+        [domain_name_bytes, record_type_bytes, class_bytes].concat()
+    }
 }
 
 #[cfg(test)]
@@ -338,6 +346,24 @@ mod tests {
                 record_type: RecordType::A,
                 class: Class::IN
             })
+        );
+    }
+
+    #[test]
+    fn test_dns_question_to_bytes() {
+        let packet = &[
+            // Start of some fake domain name (not relevant for this test)
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType (e.g. 0x00, 0x01 for A)
+            0x00, 0x01, // Class (e.g. 0x00, 0x01 for IN)
+        ];
+
+        assert_eq!(
+            DnsQuestion::new(packet).map(|question| question.to_bytes()),
+            Ok(packet.to_vec())
         );
     }
 }

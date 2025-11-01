@@ -23,7 +23,7 @@ pub fn run() -> std::io::Result<()> {
         recursion_available: false,
         reserved: 0,
         response_code: ResponseCode::NoError,
-        question_count: 0,
+        question_count: 1,
         answer_record_count: 0,
         authority_record_count: 0,
         additional_record_count: 0,
