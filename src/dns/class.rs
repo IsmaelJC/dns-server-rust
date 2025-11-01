@@ -38,6 +38,7 @@ impl TryFrom<u16> for Class {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
