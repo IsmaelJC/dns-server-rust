@@ -246,6 +246,27 @@ mod tests {
     }
 
     #[test]
+    fn test_class_new() {
+        // A simple test packet that is too short and should fail.
+        let bad_packet = &[0x00, 0x01];
+        assert_eq!(Class::new(bad_packet, 1), Err(()));
+
+        let packet = &[
+            // Start of some fake domain name (not relevant for this test)
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType (e.g. 0x00, 0x01 for A)
+            0x00, 0x01, // Class (e.g. 0x00, 0x01 for IN)
+        ];
+
+        // domain_name_len is position after domain name (should be 17 for above)
+        let domain_name_len = 16;
+        assert_eq!(Class::new(packet, domain_name_len), Ok(Class::IN));
+    }
+
+    #[test]
     fn domain_name_new() {
         let google_dot_com: &[u8] = &[
             0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03, 0x63, 0x6f, 0x6d, 0x00,
