@@ -6,4 +6,4 @@ pub mod question;
 
 // Re-export commonly used types for convenience
 pub use header::{DnsHeader, QRIndicator, ResponseCode};
-pub use question::{Class, DomainName, RecordType};
+pub use question::{Class, DnsQuestion, DomainName, RecordType};

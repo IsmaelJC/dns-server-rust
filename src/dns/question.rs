@@ -213,6 +213,27 @@ mod tests {
     }
 
     #[test]
+    fn test_record_type_new() {
+        // A simple test packet that is too short and should fail.
+        let bad_packet = &[0x00, 0x01];
+        assert_eq!(RecordType::new(bad_packet, 1), Err(()));
+
+        let packet = &[
+            // Start of some fake domain name (not relevant for this test)
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType (e.g. 0x00, 0x01 for A)
+            0x00, 0x01, // Class (e.g. 0x00, 0x01 for IN)
+        ];
+
+        // domain_name_len is position after domain name (should be 17 for above)
+        let domain_name_len = 16;
+        assert_eq!(RecordType::new(packet, domain_name_len), Ok(RecordType::A));
+    }
+
+    #[test]
     fn test_class_conversion() {
         assert_eq!(Class::try_from(1), Ok(Class::IN));
         assert_eq!(Class::try_from(2), Ok(Class::CS));
