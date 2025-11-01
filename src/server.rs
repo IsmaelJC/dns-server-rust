@@ -1,6 +1,8 @@
 use std::net::UdpSocket;
 
-use crate::dns::{DnsHeader, QRIndicator, ResponseCode};
+use crate::dns::{
+    Class, DnsHeader, DnsQuestion, DomainName, QRIndicator, RecordType, ResponseCode,
+};
 
 /// Starts and runs the DNS server
 ///
@@ -30,14 +32,31 @@ pub fn run() -> std::io::Result<()> {
     }
     .to_bytes();
 
+    let response_question_section = DnsQuestion {
+        domain_name: DomainName {
+            wire_format: [
+                0x0c, 0x63, 0x6f, 0x64, 0x65, 0x63, 0x72, 0x61, 0x66, 0x74, 0x65, 0x72, 0x73, 0x02,
+                0x69, 0x6f, 0x00,
+            ]
+            .to_vec(),
+            label_segments: Vec::from([String::from("codecrafters"), String::from("io")]),
+        },
+        record_type: RecordType::A,
+        class: Class::IN,
+    }
+    .to_bytes();
+
     loop {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 println!("Received {} bytes from {}", size, source);
                 let mut response = [0; 512];
 
-                let destination_slice = &mut response[..12];
-                destination_slice.copy_from_slice(&response_header);
+                let header_destination_slice = &mut response[..12];
+                header_destination_slice.copy_from_slice(&response_header);
+
+                let question_destination_slice = &mut response[12..33];
+                question_destination_slice.copy_from_slice(&response_question_section);
 
                 udp_socket.send_to(&response, source)?;
             }
