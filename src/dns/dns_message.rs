@@ -1,4 +1,4 @@
-use crate::dns::{answer_record, DnsAnswerRecord, DnsHeader, DnsQuestion, ResponseCode};
+use crate::dns::{DnsAnswerRecord, DnsHeader, DnsQuestion, ResponseCode};
 
 /// Represents a complete DNS message consisting of a header, questions, and answer records.
 ///
@@ -113,7 +113,7 @@ impl DnsMessage {
 
 #[cfg(test)]
 mod tests {
-    use crate::dns::{Class, DomainName, QRIndicator, RData, RecordType, ResponseCode};
+    use crate::dns::{answer_record::RData, Class, DomainName, QRIndicator, RecordType};
 
     use super::*;
 
