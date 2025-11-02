@@ -55,10 +55,10 @@ pub struct DnsHeader {
     pub recursion_available: bool,
     pub reserved: u8,
     pub response_code: ResponseCode,
-    pub question_count: u16,
-    pub answer_record_count: u16,
-    pub authority_record_count: u16,
-    pub additional_record_count: u16,
+    pub question_count: usize,
+    pub answer_record_count: usize,
+    pub authority_record_count: usize,
+    pub additional_record_count: usize,
 }
 
 impl DnsHeader {
@@ -109,10 +109,10 @@ impl From<&[u8; 12]> for DnsHeader {
             recursion_available: (buf[3] & 0b10000000) != 0,
             reserved: (buf[3] & 0b01110000) >> 4,
             response_code: ResponseCode::from(buf[3] & 0b00001111),
-            question_count: u16::from_be_bytes([buf[4], buf[5]]),
-            answer_record_count: u16::from_be_bytes([buf[6], buf[7]]),
-            authority_record_count: u16::from_be_bytes([buf[8], buf[9]]),
-            additional_record_count: u16::from_be_bytes([buf[10], buf[11]]),
+            question_count: u16::from_be_bytes([buf[4], buf[5]]).into(),
+            answer_record_count: u16::from_be_bytes([buf[6], buf[7]]).into(),
+            authority_record_count: u16::from_be_bytes([buf[8], buf[9]]).into(),
+            additional_record_count: u16::from_be_bytes([buf[10], buf[11]]).into(),
         }
     }
 }
