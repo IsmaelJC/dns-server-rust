@@ -122,10 +122,18 @@ impl From<&DnsHeader> for [u8; 12] {
     fn from(header: &DnsHeader) -> Self {
         let packet_identifier_bytes = header.packet_identifier.to_be_bytes();
         let flags_bytes = header.get_flags_bytes();
-        let question_count_bytes = header.question_count.to_be_bytes();
-        let answer_record_bytes = header.answer_record_count.to_be_bytes();
-        let authority_record_count = header.authority_record_count.to_be_bytes();
-        let additional_record_count = header.additional_record_count.to_be_bytes();
+        let question_count_bytes = u16::try_from(header.question_count)
+            .unwrap_or(0)
+            .to_be_bytes();
+        let answer_record_bytes = u16::try_from(header.answer_record_count)
+            .unwrap_or(0)
+            .to_be_bytes();
+        let authority_record_count = u16::try_from(header.authority_record_count)
+            .unwrap_or(0)
+            .to_be_bytes();
+        let additional_record_count = u16::try_from(header.additional_record_count)
+            .unwrap_or(0)
+            .to_be_bytes();
 
         [
             packet_identifier_bytes[0],
