@@ -7,7 +7,7 @@ pub mod question;
 pub mod record_type;
 
 // Re-export commonly used types for convenience
-pub use answer_record::{DnsAnswerRecord, RData};
+pub use answer_record::DnsAnswerRecord;
 pub use class::Class;
 pub use dns_message::DnsMessage;
 pub use domain_name::DomainName;

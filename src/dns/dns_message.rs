@@ -47,7 +47,7 @@ impl DnsMessage {
                     ResponseCode::NotImplemented
                 },
                 question_count: self.questions.len(),
-                answer_record_count: 0,
+                answer_record_count: self.answers.len(),
                 authority_record_count: 0,
                 additional_record_count: 0,
             },
