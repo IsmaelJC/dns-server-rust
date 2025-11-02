@@ -1,4 +1,4 @@
-use crate::dns::{Class, DomainName, RecordType};
+use crate::dns::{domain_name, Class, DomainName, RecordType};
 
 /// Represents a single DNS question section entry.
 ///
@@ -27,6 +27,13 @@ impl DnsQuestion {
                 _ => Err(()),
             }
         })
+    }
+
+    pub fn parse_and_return_next_slice(packet_slice: &[u8]) -> Result<(Self, &[u8]), ()> {
+        let question = Self::new(packet_slice)?;
+        let domain_name_len = question.domain_name.wire_format.len();
+
+        Ok((question, &packet_slice[domain_name_len + 4..]))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
