@@ -56,6 +56,28 @@ impl DnsMessage {
         }
     }
 
+    pub fn build_error_reply() -> Self {
+        DnsMessage {
+            header: DnsHeader {
+                packet_identifier: 1234,
+                query_response_indicator: super::QRIndicator::Reply,
+                operation_code: 0,
+                authoritative_answer: false,
+                truncation: false,
+                recursion_desired: false,
+                recursion_available: false,
+                reserved: 0,
+                response_code: ResponseCode::ServerFailure,
+                question_count: 0,
+                answer_record_count: 0,
+                authority_record_count: 0,
+                additional_record_count: 0,
+            },
+            questions: Vec::new(),
+            answers: Vec::new(),
+        }
+    }
+
     pub fn to_bytes(&self) -> [u8; 512] {
         let header_bytes = self.header.to_bytes().to_vec();
         let questions_bytes: Vec<u8> = self
