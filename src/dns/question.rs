@@ -33,7 +33,10 @@ impl DnsQuestion {
         let question = Self::new(packet_slice)?;
         let domain_name_len = question.domain_name.wire_format.len();
 
-        Ok((question, &packet_slice[domain_name_len + 4..]))
+        packet_slice
+            .get(domain_name_len + 4..)
+            .ok_or(())
+            .map(|next_slice| (question, next_slice))
     }
 
     pub fn parse_all_questions(
