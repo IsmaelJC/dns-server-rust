@@ -1,4 +1,4 @@
-use crate::dns::{domain_name, Class, DomainName, RecordType};
+use crate::dns::{Class, DomainName, RecordType};
 
 /// Represents a single DNS question section entry.
 ///
@@ -29,11 +29,33 @@ impl DnsQuestion {
         })
     }
 
-    pub fn parse_and_return_next_slice(packet_slice: &[u8]) -> Result<(Self, &[u8]), ()> {
+    fn parse_and_return_next_slice(packet_slice: &[u8]) -> Result<(Self, &[u8]), ()> {
         let question = Self::new(packet_slice)?;
         let domain_name_len = question.domain_name.wire_format.len();
 
         Ok((question, &packet_slice[domain_name_len + 4..]))
+    }
+
+    pub fn parse_all_questions(
+        packet_slice: &[u8],
+        number_of_questions: usize,
+    ) -> Result<(Vec<Self>, &[u8]), ()> {
+        let mut questions: Vec<Self> = Vec::new();
+        let mut current_slice = packet_slice;
+
+        for _ in 0..number_of_questions {
+            match Self::parse_and_return_next_slice(current_slice) {
+                Err(_) => {
+                    return Err(());
+                }
+                Ok((question, next_slice)) => {
+                    questions.push(question);
+                    current_slice = next_slice;
+                }
+            }
+        }
+
+        Ok((questions, current_slice))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -100,5 +122,60 @@ mod tests {
             DnsQuestion::new(packet).map(|question| question.to_bytes()),
             Ok(packet.to_vec())
         );
+    }
+
+    #[test]
+    fn test_parse_all_questions() {
+        let packet = [
+            // Question 1
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType::A
+            0x00, 0x01, // Class::IN
+            // Question 2
+            0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, // "example"
+            0x03, 0x6f, 0x72, 0x67, // "org"
+            0x00, // end of name
+            0x00, 0x01, // RecordType::A
+            0x00, 0x01, // Class::IN
+            // Answer (for test purposes we include only a couple of null bytes)
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        assert_eq!(
+            DnsQuestion::parse_all_questions(&packet, 2),
+            Ok((
+                vec![
+                    DnsQuestion {
+                        domain_name: DomainName {
+                            wire_format: vec![
+                                0x03, 0x77, 0x77, 0x77, // "www"
+                                0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+                                0x03, 0x63, 0x6f, 0x6d, // "com"
+                                0x00, // end of name
+                            ],
+                            label_segments: vec!["www".into(), "google".into(), "com".into()]
+                        },
+                        record_type: RecordType::A,
+                        class: Class::IN
+                    },
+                    DnsQuestion {
+                        domain_name: DomainName {
+                            wire_format: vec![
+                                0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, // "example"
+                                0x03, 0x6f, 0x72, 0x67, // "org"
+                                0x00, // end of name
+                            ],
+                            label_segments: vec!["example".into(), "org".into()]
+                        },
+                        record_type: RecordType::A,
+                        class: Class::IN
+                    }
+                ],
+                &packet[packet.len() - 4..]
+            ))
+        )
     }
 }
