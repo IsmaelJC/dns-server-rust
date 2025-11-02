@@ -19,7 +19,10 @@ pub fn run() -> std::io::Result<()> {
 
                 let response = DnsMessage::new(&buf)
                     .map(|query| query.build_reply())
-                    .unwrap_or(DnsMessage::build_error_reply())
+                    .unwrap_or_else(|_| {
+                        println!("Failed query parsing");
+                        DnsMessage::build_error_reply()
+                    })
                     .to_bytes();
 
                 udp_socket.send_to(&response, source)?;

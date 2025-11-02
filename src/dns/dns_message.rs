@@ -1,4 +1,7 @@
-use crate::dns::{DnsAnswerRecord, DnsHeader, DnsQuestion, ResponseCode};
+use crate::dns::{
+    answer_record::RData, Class, DnsAnswerRecord, DnsHeader, DnsQuestion, DomainName, RecordType,
+    ResponseCode,
+};
 
 /// Represents a complete DNS message consisting of a header, questions, and answer records.
 ///
@@ -47,12 +50,26 @@ impl DnsMessage {
                     ResponseCode::NotImplemented
                 },
                 question_count: self.questions.len(),
-                answer_record_count: self.answers.len(),
+                answer_record_count: 1,
                 authority_record_count: 0,
                 additional_record_count: 0,
             },
             questions: self.questions.clone(),
-            answers: self.answers.clone(),
+            answers: vec![DnsAnswerRecord {
+                domain_name: DomainName {
+                    wire_format: [
+                        0x0c, 0x63, 0x6f, 0x64, 0x65, 0x63, 0x72, 0x61, 0x66, 0x74, 0x65, 0x72,
+                        0x73, 0x02, 0x69, 0x6f, 0x00,
+                    ]
+                    .to_vec(),
+                    label_segments: Vec::from([String::from("codecrafters"), String::from("io")]),
+                },
+                record_type: RecordType::A,
+                class: Class::IN,
+                time_to_live: 60,
+                r_data_length: 4,
+                r_data: RData(vec![8, 8, 8, 8]),
+            }],
         }
     }
 
