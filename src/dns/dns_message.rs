@@ -1,6 +1,5 @@
 use crate::dns::{
-    answer_record::RData, Class, DnsAnswerRecord, DnsHeader, DnsQuestion, DomainName, RecordType,
-    ResponseCode,
+    answer_record::RData, Class, DnsAnswerRecord, DnsHeader, DnsQuestion, RecordType, ResponseCode,
 };
 
 /// Represents a complete DNS message consisting of a header, questions, and answer records.
@@ -56,14 +55,7 @@ impl DnsMessage {
             },
             questions: self.questions.clone(),
             answers: vec![DnsAnswerRecord {
-                domain_name: DomainName {
-                    wire_format: [
-                        0x0c, 0x63, 0x6f, 0x64, 0x65, 0x63, 0x72, 0x61, 0x66, 0x74, 0x65, 0x72,
-                        0x73, 0x02, 0x69, 0x6f, 0x00,
-                    ]
-                    .to_vec(),
-                    label_segments: Vec::from([String::from("codecrafters"), String::from("io")]),
-                },
+                domain_name: self.questions[0].domain_name.clone(),
                 record_type: RecordType::A,
                 class: Class::IN,
                 time_to_live: 60,
@@ -100,14 +92,12 @@ impl DnsMessage {
         let questions_bytes: Vec<u8> = self
             .questions
             .iter()
-            .map(|question| question.to_bytes())
-            .flatten()
+            .flat_map(|question| question.to_bytes())
             .collect();
         let answer_records_bytes: Vec<u8> = self
             .answers
             .iter()
-            .map(|answer| answer.to_bytes())
-            .flatten()
+            .flat_map(|answer| answer.to_bytes())
             .collect();
 
         let mut buffer = [0u8; 512];
