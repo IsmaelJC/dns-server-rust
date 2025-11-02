@@ -89,6 +89,39 @@ impl DnsAnswerRecord {
         })
     }
 
+    fn parse_and_return_next_slice(packet_slice: &[u8]) -> Result<(Self, &[u8]), ()> {
+        let answer = Self::new(packet_slice)?;
+        let domain_name_len = answer.domain_name.wire_format.len();
+        let r_data_length = answer.r_data_length;
+
+        packet_slice
+            .get(domain_name_len + r_data_length + 10..)
+            .ok_or(())
+            .map(|next_slice| (answer, next_slice))
+    }
+
+    pub fn parse_all_answers(
+        packet_slice: &[u8],
+        number_of_answers: usize,
+    ) -> Result<(Vec<Self>, &[u8]), ()> {
+        let mut answers: Vec<Self> = Vec::new();
+        let mut current_slice = packet_slice;
+
+        for _ in 0..number_of_answers {
+            match Self::parse_and_return_next_slice(current_slice) {
+                Err(_) => {
+                    return Err(());
+                }
+                Ok((question, next_slice)) => {
+                    answers.push(question);
+                    current_slice = next_slice;
+                }
+            }
+        }
+
+        Ok((answers, current_slice))
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let domain_name_bytes = self.domain_name.wire_format.clone();
         let record_type_bytes = (self.record_type as u16).to_be_bytes().to_vec();
@@ -233,5 +266,76 @@ mod tests {
             DnsAnswerRecord::new(&full_packet).map(|answer| { answer.to_bytes() }),
             Ok(full_packet)
         );
+    }
+
+    #[test]
+    fn test_parse_all_answers() {
+        let answers = [
+            // Answer 1
+            0x03, 0x77, 0x77, 0x77, // "www"
+            0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+            0x03, 0x63, 0x6f, 0x6d, // "com"
+            0x00, // end of name
+            0x00, 0x01, // RecordType::A
+            0x00, 0x01, // Class::IN
+            0x00, 0x00, 0x00, 0x2a, // TTL = 42
+            0x00, 0x04, // RData length = 4
+            192, 168, 1, 1, // RData (IPv4)
+            // Answer 2
+            0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, // "example"
+            0x03, 0x6f, 0x72, 0x67, // "org"
+            0x00, // end of name
+            0x00, 0x01, // RecordType::A
+            0x00, 0x01, // Class::IN
+            0x00, 0x00, 0x00, 0x2b, // TTL = 43
+            0x00, 0x04, // RData length = 4
+            8, 8, 8, 8, // RData (IPv4)
+            // Extra bytes to test leftover slice
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        assert_eq!(
+            DnsAnswerRecord::parse_all_answers(&answers, 2),
+            Ok((
+                vec![
+                    DnsAnswerRecord {
+                        domain_name: DomainName {
+                            wire_format: vec![
+                                0x03, 0x77, 0x77, 0x77, // "www"
+                                0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, // "google"
+                                0x03, 0x63, 0x6f, 0x6d, // "com"
+                                0x00  // end of name
+                            ],
+                            label_segments: vec!["www".into(), "google".into(), "com".into()],
+                        },
+                        record_type: RecordType::A,
+                        class: Class::IN,
+                        time_to_live: 42,
+                        r_data_length: 4,
+                        r_data: RData(vec![192, 168, 1, 1]),
+                    },
+                    DnsAnswerRecord {
+                        domain_name: DomainName {
+                            wire_format: vec![
+                                0x07, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, // "example"
+                                0x03, 0x6f, 0x72, 0x67, // "org"
+                                0x00, // end of name
+                            ],
+                            label_segments: vec!["example".into(), "org".into()],
+                        },
+                        record_type: RecordType::A,
+                        class: Class::IN,
+                        time_to_live: 43,
+                        r_data_length: 4,
+                        r_data: RData(vec![8, 8, 8, 8]),
+                    }
+                ],
+                &answers[answers.len() - 4..]
+            ))
+        );
+
+        // Truncated packet should fail
+        let truncated = &answers[..answers.len() - 10];
+        assert_eq!(DnsAnswerRecord::parse_all_answers(truncated, 2), Err(()));
     }
 }
