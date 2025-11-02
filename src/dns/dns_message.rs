@@ -1,4 +1,4 @@
-use crate::dns::{DnsAnswerRecord, DnsHeader, DnsQuestion};
+use crate::dns::{answer_record, DnsAnswerRecord, DnsHeader, DnsQuestion};
 
 /// Represents a complete DNS message consisting of a header, questions, and answer records.
 ///
@@ -28,6 +28,38 @@ impl DnsMessage {
             questions,
             answers,
         })
+    }
+
+    pub fn to_bytes(&self) -> [u8; 512] {
+        let header_bytes = self.header.to_bytes().to_vec();
+        let questions_bytes: Vec<u8> = self
+            .questions
+            .iter()
+            .map(|question| question.to_bytes())
+            .flatten()
+            .collect();
+        let answer_records_bytes: Vec<u8> = self
+            .answers
+            .iter()
+            .map(|answer| answer.to_bytes())
+            .flatten()
+            .collect();
+
+        let mut buffer = [0u8; 512];
+        let mut offset = 0;
+
+        // Copy first vec
+        buffer[offset..offset + header_bytes.len()].copy_from_slice(&header_bytes);
+        offset += header_bytes.len();
+
+        // Copy second vec
+        buffer[offset..offset + questions_bytes.len()].copy_from_slice(&questions_bytes);
+        offset += questions_bytes.len();
+
+        // Copy third vec
+        buffer[offset..offset + answer_records_bytes.len()].copy_from_slice(&answer_records_bytes);
+
+        buffer
     }
 }
 
@@ -148,5 +180,56 @@ mod tests {
         bad_packet[bad_rdata_pos + 1] = 0xFF; // RDLEN=511 but only 4 bytes present
 
         assert!(DnsMessage::new(&bad_packet).is_err());
+    }
+
+    #[test]
+    fn test_dns_message_to_bytes_roundtrip() {
+        let header = DnsHeader {
+            packet_identifier: 0xBEEF,
+            query_response_indicator: crate::dns::QRIndicator::Reply,
+            operation_code: 0,
+            authoritative_answer: false,
+            truncation: false,
+            recursion_desired: true,
+            recursion_available: false,
+            reserved: 0,
+            response_code: crate::dns::ResponseCode::NoError,
+            question_count: 1,
+            answer_record_count: 1,
+            authority_record_count: 0,
+            additional_record_count: 0,
+        };
+
+        let question = DnsQuestion {
+            domain_name: DomainName {
+                wire_format: vec![
+                    0x03, b'w', b'w', b'w', 0x06, b'g', b'o', b'o', b'g', b'l', b'e', 0x03, b'c',
+                    b'o', b'm', 0x00,
+                ],
+                label_segments: vec!["www".to_string(), "google".to_string(), "com".to_string()],
+            },
+            record_type: RecordType::A,
+            class: Class::IN,
+        };
+
+        let answer = DnsAnswerRecord {
+            domain_name: question.domain_name.clone(),
+            record_type: RecordType::A,
+            class: Class::IN,
+            time_to_live: 300,
+            r_data_length: 4,
+            r_data: RData(vec![8, 8, 8, 8]),
+        };
+
+        let message = DnsMessage {
+            header: header.clone(),
+            questions: vec![question.clone()],
+            answers: vec![answer.clone()],
+        };
+
+        let bytes = message.to_bytes();
+        let parsed = DnsMessage::new(&bytes);
+
+        assert_eq!(parsed, Ok(message));
     }
 }
