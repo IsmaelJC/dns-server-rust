@@ -62,6 +62,14 @@ pub struct DnsHeader {
 }
 
 impl DnsHeader {
+    pub fn new(packet_slice: &[u8]) -> Result<Self, ()> {
+        packet_slice
+            .get(..12)
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(|fixed_array: &[u8; 12]| fixed_array.into())
+            .ok_or(())
+    }
+
     /// Encodes the DNS header flags into a 2-byte array
     ///
     /// The flags are packed according to RFC 1035:
@@ -188,5 +196,44 @@ mod tests {
         let deserialized = DnsHeader::from(&bytes);
 
         assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_dns_header_new_success_and_error() {
+        // Prepare a valid 12-byte DNS header packet (all fields are minimal/deterministic)
+        let header_bytes: [u8; 12] = [
+            0x04, 0xD2,       // packet_identifier: 1234
+            0b10000001, // QR=1 (Reply), Opcode=0, AA=0, TC=0, RD=1
+            0b00000000, // RA=0, Z=0, RCODE=0
+            0x00, 0x01, // QDCOUNT = 1
+            0x00, 0x02, // ANCOUNT = 2
+            0x00, 0x03, // NSCOUNT = 3
+            0x00, 0x04, // ARCOUNT = 4
+        ];
+        assert_eq!(
+            DnsHeader::new(&header_bytes),
+            Ok(DnsHeader {
+                packet_identifier: 1234,
+                query_response_indicator: QRIndicator::Reply,
+                operation_code: 0,
+                authoritative_answer: false,
+                truncation: false,
+                recursion_desired: true,
+                recursion_available: false,
+                reserved: 0,
+                response_code: ResponseCode::NoError,
+                question_count: 1,
+                answer_record_count: 2,
+                authority_record_count: 3,
+                additional_record_count: 4
+            })
+        );
+
+        // Provide an invalid (shorter than 12 bytes) header
+        let bad_bytes: [u8; 6] = [0, 1, 2, 3, 4, 5];
+        assert!(
+            DnsHeader::new(&bad_bytes).is_err(),
+            "Should error if input is too short"
+        );
     }
 }
