@@ -176,6 +176,12 @@ mod tests {
                 ],
                 &packet[packet.len() - 4..]
             ))
+        );
+
+        // If we trucate the second question, the parsing should fail
+        assert_eq!(
+            DnsQuestion::parse_all_questions(&packet[..packet.len() - 10], 2),
+            Err(())
         )
     }
 }
