@@ -1,4 +1,4 @@
-use crate::dns::{answer_record, DnsAnswerRecord, DnsHeader, DnsQuestion};
+use crate::dns::{answer_record, DnsAnswerRecord, DnsHeader, DnsQuestion, ResponseCode};
 
 /// Represents a complete DNS message consisting of a header, questions, and answer records.
 ///
@@ -28,6 +28,32 @@ impl DnsMessage {
             questions,
             answers,
         })
+    }
+
+    pub fn build_reply(&self) -> Self {
+        DnsMessage {
+            header: DnsHeader {
+                packet_identifier: self.header.packet_identifier,
+                query_response_indicator: super::QRIndicator::Reply,
+                operation_code: self.header.operation_code,
+                authoritative_answer: false,
+                truncation: false,
+                recursion_desired: self.header.recursion_desired,
+                recursion_available: false,
+                reserved: 0,
+                response_code: if self.header.operation_code == 0 {
+                    ResponseCode::NoError
+                } else {
+                    ResponseCode::NotImplemented
+                },
+                question_count: self.questions.len(),
+                answer_record_count: 0,
+                authority_record_count: 0,
+                additional_record_count: 0,
+            },
+            questions: self.questions.clone(),
+            answers: self.answers.clone(),
+        }
     }
 
     pub fn to_bytes(&self) -> [u8; 512] {
